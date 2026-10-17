@@ -1,11 +1,12 @@
 # Spring Boot REST Demo
 
-A Spring Boot REST API for managing items. Items are stored in memory and are
-cleared when the application restarts.
+A REST API for managing items, built with Spring Boot and Java. Items are stored
+in memory and are cleared when the application restarts.
 
-## Requirements
+## Technology and versions
 
-- Java 17 or newer
+- Java 21
+- Spring Boot 3.5.7 (Spring Framework 6.2.x, managed by Spring Boot)
 - Maven 3.6 or newer
 
 ## Run
@@ -14,22 +15,23 @@ cleared when the application restarts.
 mvn spring-boot:run
 ```
 
-The API is available at `http://localhost:8282/api/items`.
-The Actuator health endpoint is available at `http://localhost:8282/actuator/health`.
+The application listens on port `8282`.
 
-## Endpoints
+## REST endpoints
 
-| Method | Path | Description | Success |
+Base URL: `http://localhost:8282`
+
+| Method | Path | Description | Success response |
 | --- | --- | --- | --- |
 | `GET` | `/api/items` | List all items | `200 OK` |
-| `GET` | `/api/items/{id}` | Get an item | `200 OK` |
-| `POST` | `/api/items` | Create an item | `201 Created` |
+| `GET` | `/api/items/{id}` | Get an item by ID | `200 OK` |
+| `POST` | `/api/items` | Create an item | `201 Created` with a `Location` header |
 | `PUT` | `/api/items/{id}` | Replace an item | `200 OK` |
 | `DELETE` | `/api/items/{id}` | Delete an item | `204 No Content` |
-| `GET` | `/actuator/health` | Check application health | `200 OK` |
+| `GET` | `/actuator/health` | Check application health (Spring Boot Actuator) | `200 OK` |
 
-Create and update requests use JSON with a required, non-blank `name` and an
-optional `description`:
+Create and update requests require a non-blank `name` and accept an optional
+`description`:
 
 ```json
 {
@@ -38,8 +40,17 @@ optional `description`:
 }
 ```
 
-Unknown item IDs return `404 Not Found`; invalid request bodies return
-`400 Bad Request` with validation details.
+For example, create an item with:
+
+```shell
+curl -i -X POST http://localhost:8282/api/items \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Example\",\"description\":\"An example item\"}"
+```
+
+Unknown item IDs return `404 Not Found`. Invalid request bodies return
+`400 Bad Request` with validation details. Only the Actuator health endpoint is
+exposed over HTTP.
 
 ## Test
 
