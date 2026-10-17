@@ -30,6 +30,11 @@ Base URL: `http://localhost:8282`
 | `DELETE` | `/api/items/{id}` | Delete an item | `204 No Content` |
 | `GET` | `/actuator/health` | Check application health (Spring Boot Actuator) | `200 OK` |
 
+Every `/api/**` request must include the `X-Client-Type` header with the value
+`UI` or `POSTMAN` (case-insensitive). Requests missing the header or using any
+other value return `400 Bad Request`. This requirement does not apply to the
+Actuator health endpoint.
+
 Create and update requests require a non-blank `name` and accept an optional
 `description`:
 
@@ -44,6 +49,7 @@ For example, create an item with:
 
 ```shell
 curl -i -X POST http://localhost:8282/api/items \
+  -H "X-Client-Type: POSTMAN" \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"Example\",\"description\":\"An example item\"}"
 ```
