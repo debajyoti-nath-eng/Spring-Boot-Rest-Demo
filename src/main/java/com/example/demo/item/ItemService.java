@@ -1,52 +1,52 @@
 package com.example.demo.item;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
+@Transactional(readOnly = true)
 public class ItemService {
 
-    private final ConcurrentMap<Long, Item> items = new ConcurrentHashMap<>();
-    private final AtomicLong nextId = new AtomicLong();
+    private final ItemRepository itemRepository;
+
+    public ItemService(ItemRepository itemRepository) {
+        this.itemRepository = itemRepository;
+    }
 
     public List<Item> findAll() {
-        return items.values().stream()
-                .sorted(Comparator.comparingLong(Item::id))
+        return itemRepository.findAll(Sort.by("id")).stream()
+                .map(ItemEntity::toItem)
                 .toList();
     }
 
     public Item findById(long id) {
-        Item item = items.get(id);
-        if (item == null) {
-            throw new ItemNotFoundException(id);
-        }
-        return item;
+        return getEntity(id).toItem();
     }
 
+    @Transactional
     public Item create(ItemRequest request) {
-        long id = nextId.incrementAndGet();
-        Item item = new Item(id, request.name(), request.description());
-        items.put(id, item);
-        return item;
+        ItemEntity entity = new ItemEntity(request.name(), request.description());
+        return itemRepository.save(entity).toItem();
     }
 
+    @Transactional
     public Item update(long id, ItemRequest request) {
-        return items.compute(id, (key, existing) -> {
-            if (existing == null) {
-                throw new ItemNotFoundException(id);
-            }
-            return new Item(id, request.name(), request.description());
-        });
+        ItemEntity entity = getEntity(id);
+        entity.setName(request.name());
+        entity.setDescription(request.description());
+        return itemRepository.save(entity).toItem();
     }
 
+    @Transactional
     public void delete(long id) {
-        if (items.remove(id) == null) {
-            throw new ItemNotFoundException(id);
-        }
+        itemRepository.delete(getEntity(id));
+    }
+
+    private ItemEntity getEntity(long id) {
+        return itemRepository.findById(id)
+                .orElseThrow(() -> new ItemNotFoundException(id));
     }
 }
