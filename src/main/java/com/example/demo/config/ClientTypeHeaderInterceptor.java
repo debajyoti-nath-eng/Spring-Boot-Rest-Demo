@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2026 Debajyoti Nath. All rights reserved.
+ */
 package com.example.demo.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +16,11 @@ import java.io.IOException;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * Validates the client type header on incoming API requests.
+ *
+ * @author Debajyoti Nath (Technical Architect - Java Backend)
+ */
 @Component
 public class ClientTypeHeaderInterceptor implements HandlerInterceptor {
 
@@ -21,10 +29,24 @@ public class ClientTypeHeaderInterceptor implements HandlerInterceptor {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * Creates the interceptor with the JSON serializer used for error responses.
+     *
+     * @param objectMapper serializer for problem detail responses
+     */
     public ClientTypeHeaderInterceptor(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Allows requests with a supported client type and rejects all others.
+     *
+     * @param request current HTTP request
+     * @param response current HTTP response
+     * @param handler selected MVC handler
+     * @return {@code true} when the client type is supported; {@code false} otherwise
+     * @throws IOException if writing the error response fails
+     */
     @Override
     public boolean preHandle(
             HttpServletRequest request,

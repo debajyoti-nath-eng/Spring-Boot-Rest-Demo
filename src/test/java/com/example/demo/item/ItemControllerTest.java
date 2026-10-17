@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2026 Debajyoti Nath. All rights reserved.
+ */
 package com.example.demo.item;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Integration tests for item endpoints and Actuator health.
+ *
+ * @author Debajyoti Nath (Technical Architect - Java Backend)
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
@@ -25,6 +33,7 @@ class ItemControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /** Verifies the health endpoint is available without the client type header. */
     @Test
     void exposesActuatorHealthEndpoint() throws Exception {
         mockMvc.perform(get("/actuator/health"))
@@ -32,6 +41,7 @@ class ItemControllerTest {
                 .andExpect(jsonPath("$.status").value("UP"));
     }
 
+    /** Verifies API requests reject missing or unsupported client types. */
     @Test
     void requiresSupportedClientTypeHeaderForApiRequests() throws Exception {
         mockMvc.perform(get("/api/items"))
@@ -47,6 +57,7 @@ class ItemControllerTest {
                 .andExpect(status().isOk());
     }
 
+    /** Verifies item CRUD behavior and request validation. */
     @Test
     void supportsItemCrudAndReportsInvalidRequests() throws Exception {
         mockMvc.perform(get("/api/items").header("X-Client-Type", "UI"))
