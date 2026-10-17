@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2026 Debajyoti Nath. All rights reserved.
+ */
 package com.example.demo.item;
 
 import jakarta.persistence.Column;
@@ -7,6 +10,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * JPA entity persisted in the application's configured database.
+ *
+ * @author Debajyoti Nath (Technical Architect - Java Backend)
+ */
 @Entity
 @Table(name = "items")
 public class ItemEntity {
@@ -23,6 +31,12 @@ public class ItemEntity {
     protected ItemEntity() {
     }
 
+    /**
+     * Creates an item entity for persistence.
+     *
+     * @param name item name
+     * @param description optional item description
+     */
     public ItemEntity(String name, String description) {
         this.name = name;
         this.description = description;
@@ -48,6 +62,11 @@ public class ItemEntity {
         this.description = description;
     }
 
+    /**
+     * Converts this persistence entity to the API representation.
+     *
+     * @return an immutable item response
+     */
     public Item toItem() {
         return new Item(id, name, description);
     }
