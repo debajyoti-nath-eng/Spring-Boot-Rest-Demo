@@ -1,7 +1,8 @@
 # Spring Boot REST Demo
 
-A REST API for managing items, built with Spring Boot and Java. Items are stored
-in memory and are cleared when the application restarts.
+A REST API for managing items, built with Spring Boot, Spring Data JPA, and
+Java. The active Spring profile selects the database: the `local` profile uses
+an in-memory H2 database, while the `dev` profile connects to PostgreSQL.
 
 ## Technology and versions
 
@@ -11,9 +12,37 @@ in memory and are cleared when the application restarts.
 
 ## Run
 
+### Local profile (H2)
+
+The `local` profile is the default. It requires no database installation; its
+in-memory data is cleared when the application stops.
+
 ```shell
 mvn spring-boot:run
 ```
+
+To select it explicitly:
+
+```shell
+mvn spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+### Dev profile (PostgreSQL)
+
+Create a PostgreSQL database named `itemsdb`, then provide its connection
+settings as environment variables before starting the application:
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/itemsdb"
+$env:DB_USERNAME = "postgres"
+$env:DB_PASSWORD = "<your-password>"
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+`DB_URL` and `DB_USERNAME` default to `jdbc:postgresql://localhost:5432/itemsdb`
+and `postgres`; `DB_PASSWORD` must be supplied. For a packaged JAR, activate
+the profile with `java -jar target/spring-boot-rest-demo-0.0.1-SNAPSHOT.jar
+--spring.profiles.active=dev`.
 
 The application listens on port `8282`.
 
@@ -56,7 +85,7 @@ curl -i -X POST http://localhost:8282/api/items \
 
 Unknown item IDs return `404 Not Found`. Invalid request bodies return
 `400 Bad Request` with validation details. Only the Actuator health endpoint is
-exposed over HTTP.
+exposed over HTTP. Hibernate updates the database schema automatically.
 
 ## Test
 

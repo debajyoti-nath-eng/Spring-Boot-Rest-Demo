@@ -15,7 +15,7 @@
     <artifactId>spring-boot-rest-demo</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>spring-boot-rest-demo</name>
-    <description>CRUD REST API built with Spring Boot, Spring Data JPA and PostgreSQL</description>
+    <description>CRUD REST API built with Spring Boot, Spring Data JPA, H2, and PostgreSQL</description>
 
     <properties>
         <java.version>21</java.version>
@@ -46,7 +46,7 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
