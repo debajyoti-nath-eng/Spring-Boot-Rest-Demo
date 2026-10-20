@@ -95,5 +95,12 @@ mvn test
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for
-the full license text.
+Copyright © 2026 Debajyoti Nath (@debajyoti-nath-eng). All rights reserved.
+You may access, download, clone, and view this repository for personal
+reference only. You may not modify, reuse, distribute, publish, or commercially
+use its contents without prior written permission. See [LICENSE](LICENSE) for
+the full terms.
+
+This license does not control GitHub repository permissions. Repository access
+settings and branch rules must be configured separately to control who can
+create branches or push changes.
