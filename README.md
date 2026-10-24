@@ -2,7 +2,8 @@
 
 A REST API for managing items, built with Spring Boot, Spring Data JPA, and
 Java. The active Spring profile selects the database: the `local` profile uses
-an in-memory H2 database, while the `dev` profile connects to PostgreSQL.
+an in-memory H2 database, the `dev` profile connects to PostgreSQL, and the
+`mysql` profile connects to MySQL.
 
 ## Technology and versions
 
@@ -43,6 +44,21 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 and `postgres`; `DB_PASSWORD` must be supplied. For a packaged JAR, activate
 the profile with `java -jar target/spring-boot-rest-demo-0.0.1-SNAPSHOT.jar
 --spring.profiles.active=dev`.
+
+### MySQL profile
+
+Create a MySQL database named `testdb` and a user with access to it, then
+provide the password as an environment variable before starting the
+application:
+
+```powershell
+$env:DB_PASSWORD = "<your-password>"
+mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
+```
+
+`DB_URL` and `DB_USERNAME` default to `jdbc:mysql://localhost:3306/testdb` and
+`testuser`; set them to use a different database or user. `DB_PASSWORD` must
+be supplied.
 
 The application listens on port `8282`.
 
