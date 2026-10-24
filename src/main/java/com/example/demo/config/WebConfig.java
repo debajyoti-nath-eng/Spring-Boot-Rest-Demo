@@ -8,7 +8,11 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Registers MVC configuration for the REST API.
+ * Configures MVC behaviour for the REST API.
+ *
+ * <p>This class registers the custom header-validation interceptor so that all
+ * requests under the {@code /api} namespace are checked before controller logic
+ * executes.
  *
  * @author Debajyoti Nath (Technical Architect - Java Backend)
  */
@@ -18,7 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
     private final ClientTypeHeaderInterceptor clientTypeHeaderInterceptor;
 
     /**
-     * Creates the web configuration.
+     * Creates the web configuration with the request interceptor.
      *
      * @param clientTypeHeaderInterceptor interceptor that validates API client headers
      */
@@ -27,7 +31,7 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * Applies client type header validation to API routes.
+     * Applies cross-cutting validation to all API routes.
      *
      * @param registry registry used to register MVC interceptors
      */

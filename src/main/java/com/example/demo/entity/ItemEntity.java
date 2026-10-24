@@ -43,22 +43,47 @@ public class ItemEntity {
         this.description = description;
     }
 
+    /**
+     * Returns the persistence identifier assigned to this item.
+     *
+     * @return item identifier or {@code null} before the entity is persisted
+     */
     public Long getId() {
         return id;
     }
 
+    /**
+     * Returns the item name.
+     *
+     * @return current item name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Updates the item name.
+     *
+     * @param name new item name
+     */
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Returns the item description.
+     *
+     * @return optional description or {@code null}
+     */
     public String getDescription() {
         return description;
     }
 
+    /**
+     * Updates the item description.
+     *
+     * @param description new description; may be {@code null}
+     */
     public void setDescription(String description) {
         this.description = description;
     }

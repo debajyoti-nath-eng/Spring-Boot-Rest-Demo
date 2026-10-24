@@ -7,7 +7,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Entry point for the Spring Boot REST application.
+ * Bootstrap class for the Spring Boot REST application.
+ *
+ * <p>This class starts the application context, scans the project for Spring
+ * components, and activates the configured profile for database access and other
+ * environment-specific settings.
  *
  * @author Debajyoti Nath (Technical Architect - Java Backend)
  */

@@ -1,37 +1,74 @@
 # Spring Boot REST Demo
 
-A REST API for managing items, built with Spring Boot, Spring Data JPA, and
-Java. The active Spring profile selects the database: the `local` profile uses
-an in-memory H2 database, the `dev` profile connects to PostgreSQL, and the
-`mysql` profile connects to MySQL.
+This project is a Spring Boot 3 application that exposes a small REST API for managing `Item` resources. It demonstrates a clean layered architecture using Spring MVC, Spring Data JPA, Bean Validation, and profile-based database configuration.
 
-## Technology and versions
+The application is intentionally lightweight and suitable for learning, testing, and extending. The default profile runs locally with an embedded H2 database, while `dev` and `mysql` profiles target PostgreSQL and MySQL respectively.
+
+## Overview
 
 - Java 21
-- Spring Boot 3.5.7 (Spring Framework 6.2.x, managed by Spring Boot)
-- Maven 3.6 or newer
+- Spring Boot 3.5.7
+- Spring Data JPA
+- Spring Validation
+- Spring Boot Actuator
+- Maven build
 
-## Run
+## Architecture at a glance
 
-### Local profile (H2)
+The application follows a common layered MVC + persistence structure:
 
-The `local` profile is the default. It requires no database installation; its
-in-memory data is cleared when the application stops.
+- `controller`: REST endpoints for HTTP traffic
+- `service`: business logic and transaction boundaries
+- `repository`: Spring Data JPA persistence access
+- `entity`: JPA-managed persistence model
+- `dto`: transport/request models used by the API
+- `exception`: API error modeling and exception mapping
+- `config`: MVC and interceptor configuration
 
-```shell
+For the full design and runtime flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Project structure
+
+```text
+src/
+├── main/
+│   ├── java/com/example/demo/
+│   │   ├── config/
+│   │   ├── controller/
+│   │   ├── dto/
+│   │   ├── entity/
+│   │   ├── exception/
+│   │   ├── repository/
+│   │   ├── service/
+│   │   ├── SpringBootRestDemoApplication.java
+│   │   └── package-info.java
+│   └── resources/
+│       ├── application.properties
+│       ├── application-local.properties
+│       ├── application-dev.properties
+│       └── application-mysql.properties
+└── test/java/com/example/demo/controller/
+```
+
+## Runtime profiles
+
+### local (default)
+
+Runs with an in-memory H2 database and no local database setup required.
+
+```bash
 mvn spring-boot:run
 ```
 
-To select it explicitly:
+To run explicitly:
 
-```shell
+```bash
 mvn spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-### Dev profile (PostgreSQL)
+### dev (PostgreSQL)
 
-Create a PostgreSQL database named `itemsdb`, then provide its connection
-settings as environment variables before starting the application:
+Uses PostgreSQL for persistent storage.
 
 ```powershell
 $env:DB_URL = "jdbc:postgresql://localhost:5432/itemsdb"
@@ -40,55 +77,47 @@ $env:DB_PASSWORD = "<your-password>"
 mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-`DB_URL` and `DB_USERNAME` default to `jdbc:postgresql://localhost:5432/itemsdb`
-and `postgres`; `DB_PASSWORD` must be supplied. For a packaged JAR, activate
-the profile with `java -jar target/spring-boot-rest-demo-0.0.1-SNAPSHOT.jar
---spring.profiles.active=dev`.
+Defaults:
+- `DB_URL`: `jdbc:postgresql://localhost:5432/itemsdb`
+- `DB_USERNAME`: `postgres`
 
-### MySQL profile
+### mysql
 
-Create a MySQL database named `testdb` and a user with access to it, then
-provide the password as an environment variable before starting the
-application:
+Uses MySQL for persistent storage.
 
 ```powershell
+$env:DB_URL = "jdbc:mysql://localhost:3306/testdb"
+$env:DB_USERNAME = "testuser"
 $env:DB_PASSWORD = "<your-password>"
 mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
 ```
 
-`DB_URL` and `DB_USERNAME` default to `jdbc:mysql://localhost:3306/testdb` and
-`testuser`; set them to use a different database or user. `DB_PASSWORD` must
-be supplied.
+Defaults:
+- `DB_URL`: `jdbc:mysql://localhost:3306/testdb`
+- `DB_USERNAME`: `testuser`
 
-The application listens on port `8282`.
-
-## Package structure
-
-Application components are organized by layer under `com.example.demo`:
-`config`, `controller`, `dto`, `entity`, `exception`, `repository`, and
-`service`. The `ItemService` interface is in `service`, and its implementation
-is in `service.impl`.
-
-## REST endpoints
+## REST API
 
 Base URL: `http://localhost:8282`
 
 | Method | Path | Description | Success response |
 | --- | --- | --- | --- |
 | `GET` | `/api/items` | List all items | `200 OK` |
-| `GET` | `/api/items/{id}` | Get an item by ID | `200 OK` |
-| `POST` | `/api/items` | Create an item | `201 Created` with a `Location` header |
+| `GET` | `/api/items/{id}` | Retrieve an item by ID | `200 OK` |
+| `POST` | `/api/items` | Create a new item | `201 Created` with `Location` header |
 | `PUT` | `/api/items/{id}` | Replace an item | `200 OK` |
 | `DELETE` | `/api/items/{id}` | Delete an item | `204 No Content` |
-| `GET` | `/actuator/health` | Check application health (Spring Boot Actuator) | `200 OK` |
+| `GET` | `/actuator/health` | Application health status | `200 OK` |
 
-Every `/api/**` request must include the `X-Client-Type` header with the value
-`UI` or `POSTMAN` (case-insensitive). Requests missing the header or using any
-other value return `400 Bad Request`. This requirement does not apply to the
-Actuator health endpoint.
+### Request contract
 
-Create and update requests require a non-blank `name` and accept an optional
-`description`:
+All `/api/**` requests require the `X-Client-Type` header. Supported values are:
+- `UI`
+- `POSTMAN`
+
+The check is case-insensitive. If the header is missing or invalid, the application responds with `400 Bad Request`.
+
+Create and update requests use this JSON body:
 
 ```json
 {
@@ -97,26 +126,40 @@ Create and update requests require a non-blank `name` and accept an optional
 }
 ```
 
-For example, create an item with:
+Rules:
+- `name` is required and cannot be blank
+- `description` is optional
 
-```shell
+Example create request:
+
+```bash
 curl -i -X POST http://localhost:8282/api/items \
   -H "X-Client-Type: POSTMAN" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"Example\",\"description\":\"An example item\"}"
+  -d '{"name":"Example","description":"An example item"}'
 ```
 
-Unknown item IDs return `404 Not Found`. Invalid request bodies return
-`400 Bad Request` with validation details. Only the Actuator health endpoint is
-exposed over HTTP. Hibernate updates the database schema automatically.
+### Error handling
 
-## Test
+- Missing item ID: `404 Not Found`
+- Validation failure: `400 Bad Request` with field details
+- Invalid client header: `400 Bad Request`
 
-```shell
+## Database and persistence notes
+
+- Hibernate auto-updates the schema via `spring.jpa.hibernate.ddl-auto=update`
+- `ItemEntity` is mapped to the `items` table
+- Repository access is implemented through `JpaRepository<ItemEntity, Long>`
+- Transactions are managed at the service layer
+
+## Testing
+
+Run the unit and integration tests with:
+
+```bash
 mvn test
 ```
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for
-the full license text.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for the complete license text.

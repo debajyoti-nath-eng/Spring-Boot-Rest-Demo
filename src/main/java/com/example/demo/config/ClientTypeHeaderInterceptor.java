@@ -17,7 +17,10 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Validates the client type header on incoming API requests.
+ * Validates the client identity header used by API callers.
+ *
+ * <p>This interceptor enforces a simple contract for all API routes by requiring
+ * the {@code X-Client-Type} header to be present and limited to a known allow-list.
  *
  * @author Debajyoti Nath (Technical Architect - Java Backend)
  */

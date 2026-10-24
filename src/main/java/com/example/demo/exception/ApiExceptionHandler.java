@@ -13,7 +13,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Converts expected API exceptions into structured HTTP problem responses.
+ * Converts framework and domain exceptions into structured HTTP problem responses.
+ *
+ * <p>This advice centralizes error translation so the controller layer remains
+ * focused on request handling instead of exception formatting.
  *
  * @author Debajyoti Nath (Technical Architect - Java Backend)
  */
