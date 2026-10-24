@@ -62,6 +62,13 @@ be supplied.
 
 The application listens on port `8282`.
 
+## Package structure
+
+Application components are organized by layer under `com.example.demo`:
+`config`, `controller`, `dto`, `entity`, `exception`, `repository`, and
+`service`. The `ItemService` interface is in `service`, and its implementation
+is in `service.impl`.
+
 ## REST endpoints
 
 Base URL: `http://localhost:8282`
