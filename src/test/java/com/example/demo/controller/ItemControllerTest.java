@@ -102,4 +102,40 @@ class ItemControllerTest {
         mockMvc.perform(get("/api/items/1").header("X-Client-Type", "UI"))
                 .andExpect(status().isNotFound());
     }
+
+    /** Verifies oversized fields are rejected as bad requests instead of failing in the database. */
+    @Test
+    void rejectsFieldsLongerThanTheirColumns() throws Exception {
+        String tooLong = "x".repeat(256);
+
+        mockMvc.perform(post("/api/items")
+                        .header("X-Client-Type", "UI")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + tooLong + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name").value("Name must be at most 255 characters"));
+
+        mockMvc.perform(post("/api/items")
+                        .header("X-Client-Type", "UI")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Pen\",\"description\":\"" + tooLong + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.description").value("Description must be at most 255 characters"));
+    }
+
+    /** Verifies security headers are sent on API, rejected and Actuator responses. */
+    @Test
+    void addsSecurityHeadersToEveryResponse() throws Exception {
+        for (var request : new org.springframework.test.web.servlet.RequestBuilder[] {
+                get("/api/items").header("X-Client-Type", "UI"),
+                get("/api/items"),
+                get("/actuator/health")}) {
+            mockMvc.perform(request)
+                    .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                    .andExpect(header().string("Cross-Origin-Resource-Policy", "same-origin"))
+                    .andExpect(header().string("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"))
+                    .andExpect(header().string("X-Frame-Options", "DENY"))
+                    .andExpect(header().string("Cache-Control", "no-store"));
+        }
+    }
 }
