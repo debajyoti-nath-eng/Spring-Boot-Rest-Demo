@@ -1,31 +1,16 @@
 # Spring Boot REST Demo
 
-This project is a Spring Boot 3 application that exposes a small REST API for managing `Item` resources. It demonstrates a clean layered architecture using Spring MVC, Spring Data JPA, Bean Validation, and profile-based database configuration.
+This project is a Spring Boot application that exposes a REST API for managing `Item` resources. It uses Spring MVC, Spring Data JPA, Jakarta Bean Validation, and profile-based database configuration.
 
-The application is intentionally lightweight and suitable for learning, testing, and extending. The default profile runs locally with an embedded H2 database, while `dev` and `mysql` profiles target PostgreSQL and MySQL respectively.
-
-## Overview
+## Technology
 
 - Java 21
-- Spring Boot 3.5.7
-- Spring Data JPA
-- Spring Validation
+- Spring Boot 3.5.16
+- Spring MVC, Spring Data JPA, and Jakarta Validation
 - Spring Boot Actuator
-- Maven build
+- Maven
 
-## Architecture at a glance
-
-The application follows a common layered MVC + persistence structure:
-
-- `controller`: REST endpoints for HTTP traffic
-- `service`: business logic and transaction boundaries
-- `repository`: Spring Data JPA persistence access
-- `entity`: JPA-managed persistence model
-- `dto`: transport/request models used by the API
-- `exception`: API error modeling and exception mapping
-- `config`: MVC and interceptor configuration
-
-For the full design and runtime flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+The Maven build also pins selected dependency versions beyond the Spring Boot-managed versions; see the version properties and comments in `pom.xml`.
 
 ## Project structure
 
@@ -33,42 +18,42 @@ For the full design and runtime flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
 src/
 ├── main/
 │   ├── java/com/example/demo/
-│   │   ├── config/
-│   │   ├── controller/
-│   │   ├── dto/
-│   │   ├── entity/
-│   │   ├── exception/
-│   │   ├── repository/
-│   │   ├── service/
-│   │   ├── SpringBootRestDemoApplication.java
-│   │   └── package-info.java
+│   │   ├── config/       # MVC client-header interceptor and response security-header filter
+│   │   ├── controller/   # Item REST endpoints
+│   │   ├── dto/          # Item response and validated request records
+│   │   ├── entity/       # JPA persistence model
+│   │   ├── exception/    # Domain exception and ProblemDetail advice
+│   │   ├── repository/   # Spring Data JPA repository
+│   │   ├── service/      # Service contract and transactional implementation
+│   │   └── SpringBootRestDemoApplication.java
 │   └── resources/
 │       ├── application.properties
 │       ├── application-local.properties
 │       ├── application-dev.properties
 │       └── application-mysql.properties
 └── test/java/com/example/demo/controller/
+    └── ItemControllerTest.java
 ```
 
-## Runtime profiles
+## Run the application
 
-### local (default)
-
-Runs with an in-memory H2 database and no local database setup required.
+The default `local` profile uses an in-memory H2 database and needs no database setup:
 
 ```bash
 mvn spring-boot:run
 ```
 
-To run explicitly:
+To select a profile explicitly, for example:
 
 ```bash
 mvn spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-### dev (PostgreSQL)
+The server listens on port `8282`.
 
-Uses PostgreSQL for persistent storage.
+### PostgreSQL (`dev` profile)
+
+The defaults use `jdbc:postgresql://localhost:5432/itemsdb` and username `postgres`. Override them as needed:
 
 ```powershell
 $env:DB_URL = "jdbc:postgresql://localhost:5432/itemsdb"
@@ -77,13 +62,9 @@ $env:DB_PASSWORD = "<your-password>"
 mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-Defaults:
-- `DB_URL`: `jdbc:postgresql://localhost:5432/itemsdb`
-- `DB_USERNAME`: `postgres`
+### MySQL (`mysql` profile)
 
-### mysql
-
-Uses MySQL for persistent storage.
+The defaults use `jdbc:mysql://localhost:3306/testdb` and username `testuser`. Override them as needed:
 
 ```powershell
 $env:DB_URL = "jdbc:mysql://localhost:3306/testdb"
@@ -92,9 +73,7 @@ $env:DB_PASSWORD = "<your-password>"
 mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
 ```
 
-Defaults:
-- `DB_URL`: `jdbc:mysql://localhost:3306/testdb`
-- `DB_USERNAME`: `testuser`
+Both database profiles read connection settings from `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. The password is supplied through the environment; do not commit credentials.
 
 ## REST API
 
@@ -102,22 +81,16 @@ Base URL: `http://localhost:8282`
 
 | Method | Path | Description | Success response |
 | --- | --- | --- | --- |
-| `GET` | `/api/items` | List all items | `200 OK` |
-| `GET` | `/api/items/{id}` | Retrieve an item by ID | `200 OK` |
-| `POST` | `/api/items` | Create a new item | `201 Created` with `Location` header |
-| `PUT` | `/api/items/{id}` | Replace an item | `200 OK` |
-| `DELETE` | `/api/items/{id}` | Delete an item | `204 No Content` |
-| `GET` | `/actuator/health` | Application health status | `200 OK` |
+| `GET` | `/api/items` | List items ordered by ID | `200 OK` |
+| `GET` | `/api/items/{id}` | Retrieve an item | `200 OK` |
+| `POST` | `/api/items` | Create an item | `201 Created`, item body, and `Location` header |
+| `PUT` | `/api/items/{id}` | Replace an existing item | `200 OK` |
+| `DELETE` | `/api/items/{id}` | Delete an existing item | `204 No Content` |
+| `GET` | `/actuator/health` | Application health | `200 OK` |
 
-### Request contract
+Every `/api/**` request must include the `X-Client-Type` header. Accepted values are `UI` and `POSTMAN`; matching ignores surrounding whitespace and letter case. A missing or unsupported value returns `400 Bad Request`. This is a request-contract check, not authentication or authorization. Actuator health does not require the header.
 
-All `/api/**` requests require the `X-Client-Type` header. Supported values are:
-- `UI`
-- `POSTMAN`
-
-The check is case-insensitive. If the header is missing or invalid, the application responds with `400 Bad Request`.
-
-Create and update requests use this JSON body:
+Create and replace requests accept:
 
 ```json
 {
@@ -126,11 +99,9 @@ Create and update requests use this JSON body:
 }
 ```
 
-Rules:
-- `name` is required and cannot be blank
-- `description` is optional
+`name` is required, must not be blank, and is limited to 255 characters. `description` is optional and is also limited to 255 characters. Validation errors return `400 Bad Request` as a ProblemDetail response with an `errors` object keyed by field.
 
-Example create request:
+Example:
 
 ```bash
 curl -i -X POST http://localhost:8282/api/items \
@@ -139,26 +110,39 @@ curl -i -X POST http://localhost:8282/api/items \
   -d '{"name":"Example","description":"An example item"}'
 ```
 
-### Error handling
+Missing item IDs return `404 Not Found` as a ProblemDetail response. Responses, including rejected requests and Actuator responses, receive defensive headers: `X-Content-Type-Options`, `Cross-Origin-Resource-Policy`, `Content-Security-Policy`, `X-Frame-Options`, `Referrer-Policy`, and `Cache-Control`.
 
-- Missing item ID: `404 Not Found`
-- Validation failure: `400 Bad Request` with field details
-- Invalid client header: `400 Bad Request`
+## Persistence
 
-## Database and persistence notes
+`ItemEntity` maps to the `items` table. `ItemRepository` extends `JpaRepository<ItemEntity, Long>`, while the service layer owns transactional CRUD operations and maps entities to the API `Item` record. Hibernate schema management is configured as `update`, and Open EntityManager in View is disabled.
 
-- Hibernate auto-updates the schema via `spring.jpa.hibernate.ddl-auto=update`
-- `ItemEntity` is mapped to the `items` table
-- Repository access is implemented through `JpaRepository<ItemEntity, Long>`
-- Transactions are managed at the service layer
+## Container image
 
-## Testing
+Build the executable JAR and image, then run it with Podman (or a Docker-compatible CLI):
 
-Run the unit and integration tests with:
+```bash
+mvn -DskipTests package
+podman build -t spring-boot-rest-demo:local .
+podman run --rm -p 8282:8282 spring-boot-rest-demo:local
+```
+
+The image runs the application as a non-root user and defines a health check against `/actuator/health`.
+
+## Tests and optional security scans
+
+Run the tests with:
 
 ```bash
 mvn test
 ```
+
+An optional Maven `security` profile configures JaCoCo, SpotBugs with Find Security Bugs, and OWASP Dependency-Check:
+
+```bash
+mvn -Psecurity verify
+```
+
+Reports are written under `target`. SonarQube analysis is optional and requires a local SonarQube server and `SONAR_TOKEN`; see the profile comments in `pom.xml`.
 
 ## License
 

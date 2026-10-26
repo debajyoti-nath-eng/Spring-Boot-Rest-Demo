@@ -1,166 +1,84 @@
-# Architecture Documentation
+# Architecture
 
-## Purpose
+## Purpose and technology
 
-This project demonstrates a compact, maintainable Spring Boot REST API for managing `Item` records. The implementation intentionally follows a layered design so the business rules, HTTP layer, and persistence concerns remain separate and easy to reason about.
+This project is a small Spring Boot 3.5.16 REST API for managing `Item` resources. It targets Java 21 and separates HTTP handling, transactional operations, persistence, and transport models. The application starts from `SpringBootRestDemoApplication`; Spring Boot selects the `local` profile by default.
 
-## High-level architecture
-
-The application is organized around a standard Spring Boot layered pattern:
-
-- HTTP layer: `controller`
-- Service layer: `service`
-- Persistence layer: `repository`
-- Domain model: `entity`
-- DTO layer: `dto`
-- Error handling: `exception`
-- Cross-cutting config: `config`
-
-The runtime starts from `SpringBootRestDemoApplication`, which bootstraps the Spring application context and activates the selected profile.
-
-## Request flow
-
-A typical request follows this path:
-
-1. An HTTP request arrives at the application.
-2. Spring MVC route matching selects a controller method.
-3. `WebConfig` registers `ClientTypeHeaderInterceptor`, which validates the `X-Client-Type` header on `/api/**` routes.
-4. The controller method validates request input using Jakarta Validation annotations.
-5. The controller delegates to the service interface.
-6. The service layer performs business logic and transaction boundaries.
-7. The repository interacts with the database using Spring Data JPA.
-8. The entity is mapped to `ItemEntity` and persisted to the configured database.
-9. The service converts the entity back to a DTO and returns it to the controller.
-10. The HTTP response is built and serialized to JSON.
-
-## Component responsibilities
-
-### Controller layer
-
-Package: `com.example.demo.controller`
-
-The controller exposes REST endpoints for the `Item` resource. This layer is responsible for:
-
-- handling HTTP requests and mapping URLs
-- validating incoming request bodies
-- translating service results to HTTP responses
-- generating resource URIs for creation responses
-
-`ItemController` is the main API entry point and contains CRUD endpoints.
-
-### Service layer
-
-Package: `com.example.demo.service` and `com.example.demo.service.impl`
-
-The service layer is the transactional boundary for the API. It owns business operations such as:
-
-- listing all items
-- retrieving one item by ID
-- creating a new item
-- updating an existing item
-- deleting an item
-
-`ItemServiceImpl` performs lookups using `ItemRepository` and wraps persistence behavior in transactions.
-
-### Repository layer
-
-Package: `com.example.demo.repository`
-
-The repository layer is built with `JpaRepository<ItemEntity, Long>`. It provides CRUD methods and search capability without custom SQL boilerplate. It is intentionally thin and keeps persistence logic close to Spring Data conventions.
-
-### Entity and DTO model
-
-- `ItemEntity`: JPA persistence model representing an item stored in the database
-- `Item`: API response model returned to clients
-- `ItemRequest`: input model for create/update requests
-
-This separation keeps database concerns out of the API contract and gives a clear distinction between persistence and transport models.
-
-### Exception handling
-
-Package: `com.example.demo.exception`
-
-The application uses `@RestControllerAdvice` to translate domain exceptions and validation failures into structured `ProblemDetail` responses. This ensures that API clients receive consistent, machine-readable error payloads.
-
-Key exceptions include:
-
-- `ItemNotFoundException`: mapped to `404 Not Found`
-- `MethodArgumentNotValidException`: mapped to `400 Bad Request`
-
-## Security and request validation
-
-The application includes an interceptor-based validation layer for API requests:
-
-- `ClientTypeHeaderInterceptor` checks for `X-Client-Type`
-- allowed values are `UI` and `POSTMAN`
-- checks are case-insensitive
-- invalid or missing header values are rejected before the controller executes
-
-This adds a simple cross-cutting validation safeguard across all `/api/**` endpoints.
-
-## Persistence configuration
-
-The application uses profile-specific property files:
-
-- `application-local.properties`: H2 in-memory database
-- `application-dev.properties`: PostgreSQL configuration
-- `application-mysql.properties`: MySQL configuration
-
-The default active profile is `local` and is defined in `application.properties`.
-
-```properties
-server.port=8282
-management.endpoints.web.exposure.include=health
-management.endpoint.health.enabled=true
-spring.profiles.default=local
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.open-in-view=false
-```
-
-Spring Boot uses the active profile to select the correct datasource and driver.
-
-## Dependency flow
-
-The dependency relationship is simple and explicit:
+## Components
 
 ```text
-ItemController -> ItemService -> ItemRepository -> ItemEntity
-                                  ^
-                                  |
-                              database configuration
+HTTP request
+    |
+SecurityHeadersFilter
+    |
+Spring MVC
+    |-- /api/** -> ClientTypeHeaderInterceptor -> ItemController
+    |                                             |
+    |                                         ItemService
+    |                                             |
+    |                                      ItemRepository
+    |                                             |
+    |                                         ItemEntity
+    |
+    `-- /actuator/health -> Actuator
 ```
 
-This keeps dependencies moving inward and supports easy testing at each layer.
+- **Configuration (`config`)**: `WebConfig` registers `ClientTypeHeaderInterceptor` for `/api/**`. `SecurityHeadersFilter` adds response headers across the application.
+- **Controller (`controller`)**: `ItemController` maps CRUD routes, validates request DTOs, delegates to the service, and returns the HTTP response. Creation returns `201 Created`, the created item, and a `Location` header.
+- **Service (`service`, `service.impl`)**: `ItemService` defines item operations. `ItemServiceImpl` implements them, orders list results by ID, converts entities to API records, and applies read-only transactions by default with write transactions for create, update, and delete.
+- **Repository (`repository`)**: `ItemRepository` extends `JpaRepository<ItemEntity, Long>` and supplies standard persistence operations.
+- **Persistence model (`entity`)**: `ItemEntity` maps to the `items` table and converts itself to the API representation.
+- **Transport models (`dto`)**: `Item` is the response record; `ItemRequest` is used for create and replacement requests. The request name must be nonblank, and both fields have a maximum length of 255 characters.
+- **Error handling (`exception`)**: `ApiExceptionHandler` maps missing items to `404 Not Found` and Bean Validation failures to `400 Bad Request`, using Spring `ProblemDetail`. Validation responses include an `errors` object keyed by field.
 
-## Testing approach
+## Request processing
 
-The project includes controller tests to validate request handling and API behavior. The tests cover expected status codes and the contract shape for the item endpoints.
+For `/api/**`, the security header filter first sets defensive response headers. The MVC interceptor then requires `X-Client-Type` to be `UI` or `POSTMAN` (case-insensitive, with surrounding whitespace ignored); otherwise it writes a `400 Bad Request` ProblemDetail response and stops request handling. This check defines an API client contract and does not authenticate or authorize callers.
 
-A typical verification command is:
+After the interceptor permits the request, Spring MVC invokes the matching controller method. Create and update bodies are validated before the controller delegates to the service. The service uses the repository to load or persist `ItemEntity` instances and returns `Item` records; Spring serializes the response as JSON. Missing IDs raise `ItemNotFoundException` and are converted by the advice. The `/actuator/health` endpoint is not covered by the client-type interceptor but does receive the response security headers.
 
-```bash
-mvn test
-```
+The `SecurityHeadersFilter` runs with highest precedence and sets:
 
-## Design strengths
+- `X-Content-Type-Options: nosniff`
+- `Cross-Origin-Resource-Policy: same-origin`
+- `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: no-referrer`
+- `Cache-Control: no-store`
 
-- Minimal and readable service API
-- Separation of concerns between transport and persistence models
-- Profile-based environment support
-- Consistent error handling through `ProblemDetail`
-- Simple dependency graph for easy onboarding
+Spring Security is not part of this application; the filter only adds response headers.
 
-## Potential extension areas
+## API routes
 
-This project can be naturally extended with:
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `GET` | `/api/items` | Returns all items ordered by ID |
+| `GET` | `/api/items/{id}` | Returns one item or a `404` ProblemDetail |
+| `POST` | `/api/items` | Creates an item; returns `201` and `Location` |
+| `PUT` | `/api/items/{id}` | Replaces an item or returns a `404` ProblemDetail |
+| `DELETE` | `/api/items/{id}` | Deletes an item; returns `204` or a `404` ProblemDetail |
+| `GET` | `/actuator/health` | Returns Actuator health without the client-type header |
 
-- pagination and sorting for large item collections
-- audit fields such as created/updated timestamps
-- authentication and authorization
-- additional resource types beyond `Item`
-- integration tests with Testcontainers
-- API versioning and OpenAPI documentation
+## Persistence and profiles
 
-## Summary
+Shared JPA and server settings in `application.properties` set port `8282`, expose only the Actuator `health` endpoint, use `spring.jpa.hibernate.ddl-auto=update`, and disable Open EntityManager in View.
 
-The architecture is intentionally small but realistic. It demonstrates how a Spring Boot REST API can be organized into clear layers, validated consistently, and configured for multiple environments without adding unnecessary complexity.
+| Profile | Database | Configuration |
+| --- | --- | --- |
+| `local` (default) | H2 in-memory database `itemsdb` | No external database required; data is ephemeral |
+| `dev` | PostgreSQL | Defaults to `jdbc:postgresql://localhost:5432/itemsdb`, username `postgres` |
+| `mysql` | MySQL | Defaults to `jdbc:mysql://localhost:3306/testdb`, username `testuser` |
+
+The PostgreSQL and MySQL profiles allow `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` environment variable overrides. Database credentials should be provided through the environment, not committed to the repository.
+
+## Build, image, and tests
+
+Maven builds the application. `mvn test` runs the test suite; `ItemControllerTest` exercises the CRUD API, client-type contract, validation, response headers, and health endpoint using the `local` profile.
+
+The `Dockerfile` packages the executable JAR in an Eclipse Temurin 21 JRE Alpine image, runs it as a non-root user, exposes port `8282`, and checks `/actuator/health` for container health.
+
+An optional Maven `security` profile configures JaCoCo coverage, SpotBugs with Find Security Bugs, and OWASP Dependency-Check. SonarQube analysis can be run separately and requires a reachable server and `SONAR_TOKEN`; see `pom.xml` for commands and report locations.
+
+## Design boundaries
+
+The API DTOs are separate from the JPA entity, and controllers depend on the service interface rather than the repository. Transaction management is kept in the service implementation; database selection is controlled by Spring profiles. These boundaries keep HTTP, business operations, and persistence concerns distinct without introducing additional framework layers.
