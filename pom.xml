@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.7</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -26,6 +26,16 @@
 
     <properties>
         <java.version>21</java.version>
+        <!--
+            Security patch overrides (Trivy / Dependency-Check, 26 Oct 2026): newer patch releases than
+            Spring Boot 3.5.16 manages, fixing known CVEs. Remove each one once Boot ships that version or later.
+        -->
+        <tomcat.version>10.1.61</tomcat.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <postgresql.version>42.7.12</postgresql.version>
+        <log4j2.version>2.25.5</log4j2.version>
+        <!-- Connector/J moved to year-based versions after 9.7.0; 26.10.0 fixes the October 2026 CVEs in 9.7.x -->
+        <mysql.version>26.10.0</mysql.version>
     </properties>
 
     <dependencies>
@@ -75,4 +85,99 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            SAST and dependency scanning, kept out of the normal build.
+            Run: mvn -Psecurity verify          (reports in target/spotbugs*, target/dependency-check-report.*, target/site/jacoco)
+            Then: mvn -Psecurity sonar:sonar    (needs SonarQube on localhost:9000 and SONAR_TOKEN in the environment)
+            Optional: add -DnvdApiKey=<your free NVD key> to make Dependency-Check's database download much faster.
+        -->
+        <profile>
+            <id>security</id>
+            <properties>
+                <sonar.host.url>http://localhost:9000</sonar.host.url>
+                <sonar.projectKey>spring-boot-rest-demo</sonar.projectKey>
+                <sonar.projectName>spring-boot-rest-demo</sonar.projectName>
+                <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+                <sonar.dependencyCheck.htmlReportPath>${project.build.directory}/dependency-check-report.html</sonar.dependencyCheck.htmlReportPath>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.16</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-agent</id>
+                                <goals><goal>prepare-agent</goal></goals>
+                            </execution>
+                            <execution>
+                                <id>report</id>
+                                <phase>verify</phase>
+                                <goals><goal>report</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>4.10.5.0</version>
+                        <configuration>
+                            <effort>Max</effort>
+                            <threshold>Low</threshold>
+                            <xmlOutput>true</xmlOutput>
+                            <htmlOutput>true</htmlOutput>
+                            <sarifOutput>true</sarifOutput>
+                            <failOnError>false</failOnError>
+                            <plugins>
+                                <plugin>
+                                    <groupId>com.h3xstream.findsecbugs</groupId>
+                                    <artifactId>findsecbugs-plugin</artifactId>
+                                    <version>1.14.0</version>
+                                </plugin>
+                            </plugins>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <!-- spotbugs writes target/reports/spotbugs.html; check writes XML/SARIF and prints findings -->
+                                <goals><goal>spotbugs</goal><goal>check</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <!-- 13.0.0 sends an empty NVD key when none is configured and fails; 12.2.2 works with or without one -->
+                        <version>12.2.2</version>
+                        <configuration>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                                <format>SARIF</format>
+                            </formats>
+                            <!-- report everything; do not fail the build on findings -->
+                            <failBuildOnCVSS>11</failBuildOnCVSS>
+                            <!-- Sonatype OSS Index now requires an account; NVD + GitHub advisories are enough here -->
+                            <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                            <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals><goal>check</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonarsource.scanner.maven</groupId>
+                        <artifactId>sonar-maven-plugin</artifactId>
+                        <version>5.8.0.7211</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
